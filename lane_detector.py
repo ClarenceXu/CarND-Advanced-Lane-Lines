@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import newaxis
 import cv2
 
 
@@ -49,20 +50,19 @@ class LaneDetector:
         threshold_binary=self.grad_mag_dir_color_thresh(img)
 
         # 3. apply a perspective transform to rectify binary image ("birds-eye view")
-        binary_warped = self.perspective_transformation(threshold_binary)
+        transformed_binary = self.perspective_transformation(threshold_binary)
 
         # 4. detect lane pixels and fit to find the lane boundary
-        self.set_nonzero_x_y(binary_warped)
+        self.set_nonzero_x_y(transformed_binary)
         # only search the entire image if lines have not been previously detected
         if not self.detected:
-            left_lane_inds, right_lane_inds, out_img = self.find_lane_pixels(binary_warped)
+            left_lane_inds, right_lane_inds, out_img = self.find_lane_pixels(transformed_binary)
         else:
             left_lane_inds, right_lane_inds = self.search_around_poly()
-
         self.fit_polynomial(left_lane_inds, right_lane_inds)
 
         # 5. draw the lane onto the warped blank image
-        color_warp, ploty, left_fitx, right_fitx = self.fillPoly_image(binary_warped)
+        color_warp, ploty, left_fitx, right_fitx = self.fillPoly_image(transformed_binary)
 
         # 6. determine the curvature of the lane
         self.measure_curvature_real(ploty, left_fitx, right_fitx)
@@ -138,14 +138,14 @@ class LaneDetector:
 
     # Apply all thresholding functions
     def grad_mag_dir_color_thresh(self, img):
-        gradx = self.abs_sobel_thresh(img, orient='x', sobel_kernel=3, thresh=(20, 100))
-        grady = self.abs_sobel_thresh(img, orient='y', sobel_kernel=3, thresh=(20, 100))
-        mag_binary = self.mag_thresh (img, sobel_kernel=3, mag_thresh=(20, 100))
+        #gradx = self.abs_sobel_thresh(img, orient='x', sobel_kernel=3, thresh=(20, 100))
+        #grady = self.abs_sobel_thresh(img, orient='y', sobel_kernel=3, thresh=(20, 100))
+        mag_binary = self.mag_thresh (img, sobel_kernel=11, mag_thresh=(80, 255))
         dir_binary = self.dir_thresh (img, sobel_kernel=15, thresh=(0.7, 1.3))
-        color_binary = self.color_thresh(img, r_thresh=(215, 255), s_thresh=(150, 255))
+        color_binary = self.color_thresh(img, r_thresh=(220, 255), s_thresh=(150, 255))
 
         combined = np.zeros_like(dir_binary)
-        combined[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1)) | (color_binary == 1) ] = 255
+        combined[((mag_binary == 1) & (dir_binary == 1)) | (color_binary == 1) ] = 255
         return combined
 
     # return a binary image, using BGR and HLS
@@ -181,14 +181,13 @@ class LaneDetector:
         # manually identified points from the sample images
         yLen = img.shape[0]
         src = np.float32([[190, yLen], [550, 480], [740, 480], [1128, yLen]])
-        # src = np.float32([[190, yLen], [548, ht], [740, ht], [xLen-150, yLen]])
-        # lines = cv2.polylines(img, np.int32([src]), True, (255, 0, 0), 3)
         dst = np.float32([[190, yLen], [190, 0], [1128, 0], [1128, yLen]])
 
         # Perform the transform
         M = cv2.getPerspectiveTransform(src, dst)
         self.Minv = cv2.getPerspectiveTransform(dst, src)
         binary_warped = cv2.warpPerspective(combo_binary, M, img_size, flags=cv2.INTER_LINEAR)
+
         return binary_warped
 
     # using histogram to find left and right lanes
@@ -231,11 +230,11 @@ class LaneDetector:
             win_xright_high = rightx_current + self.margin
 
             # TODO: not needed for video: draw rectangles on the image
-            if False:
+            if True:
                 cv2.rectangle(out_img, (win_xleft_low, win_y_low),
-                              (win_xleft_high, win_y_high), (0, 255, 0), 2)
+                              (win_xleft_high, win_y_high), (0, 0, 255), 2)
                 cv2.rectangle(out_img, (win_xright_low, win_y_low),
-                              (win_xright_high, win_y_high), (0, 255, 0), 2)
+                              (win_xright_high, win_y_high), (0, 0, 255), 2)
 
             # Identify the nonzero pixels in x and y within the window #
             good_left_inds = ((self.nonzeroy >= win_y_low) & (self.nonzeroy < win_y_high) &
@@ -333,6 +332,7 @@ class LaneDetector:
         right_curverad = ((1 + (
                 2 * right_fit_cr[0] * y_eval * self.ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
             2 * right_fit_cr[0])
+
         self.radius_of_curvature = (left_curverad + right_curverad) / 2
         return self.xm_per_pix
 

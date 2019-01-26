@@ -51,10 +51,9 @@ if __name__ == '__main__':
     #detect_lane_for_video('./challenge_video.mp4')
     #detect_lane_for_video('./harder_challenge_video.mp4')
     # detect_lane_for_video(sys.argv[1])
-
-    for path in glob.glob('./test_images/*.jpg'):
-        continue
+    if 0:
         lane_detector = get_lane_detector()
-        img = cv2.imread(path)
-        result = lane_detector.apply_lines(img)
-        save_image(path, (img, result), 'laneDetector_')
+        for path in glob.glob('./test_images/*.jpg'):
+            img = cv2.imread(path)
+            result = lane_detector.apply_lines(img)
+            cv2.imwrite(get_output_path(path, 'final_'), result)
